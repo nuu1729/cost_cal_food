@@ -1,0 +1,2384 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>料理原価計算</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #e3f2fd 0%, #f8fbff 100%);
+            min-height: 100vh;
+            padding: 20px;
+            padding-bottom: 120px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* データ管理ボタン */
+        .data-management {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 999;
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+        }
+
+        .data-btn {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #1976d2;
+            color: #1976d2;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .data-btn:hover {
+            background: #1976d2;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+        }
+
+        .data-btn.search {
+            border-color: #9c27b0;
+            color: #9c27b0;
+        }
+
+        .data-btn.search:hover {
+            background: #9c27b0;
+            color: white;
+        }
+
+        .data-btn.danger {
+            border-color: #f44336;
+            color: #f44336;
+        }
+
+        .data-btn.danger:hover {
+            background: #f44336;
+            color: white;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1976d2;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 320px 320px 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        /* パネル共通スタイル */
+        .panel {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            height: fit-content;
+        }
+
+        .panel-title {
+            color: #1976d2;
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-title::before {
+            content: "🛒";
+            font-size: 1.2rem;
+        }
+
+        /* フォーム */
+        .form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 25px;
+            background: rgba(144, 202, 249, 0.1);
+            border-radius: 15px;
+            border: 2px dashed #90caf9;
+        }
+
+        .form-title {
+            font-weight: 600;
+            color: #1976d2;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        input[type="text"], input[type="number"], select {
+            padding: 14px 16px;
+            border: 2px solid #e3f2fd;
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+            min-height: 48px;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: #42a5f5;
+            box-shadow: 0 0 0 3px rgba(66, 165, 245, 0.2);
+        }
+
+        .add-btn {
+            background: linear-gradient(45deg, #42a5f5, #1976d2);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .add-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(66, 165, 245, 0.4);
+        }
+
+        /* アイテムリスト */
+        .item-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .item {
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #e3f2fd;
+            border-radius: 15px;
+            padding: 15px;
+            cursor: grab;
+            transition: all 0.3s ease;
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(66, 165, 245, 0.2);
+            border-color: #90caf9;
+        }
+
+        .item:active {
+            cursor: grabbing;
+            transform: rotate(2deg) scale(1.05);
+            z-index: 1000;
+        }
+
+        .item-name {
+            font-weight: 600;
+            color: #1976d2;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+
+        .item-details {
+            font-size: 0.9rem;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .item-store {
+            font-size: 0.8rem;
+            color: #666;
+            font-style: italic;
+            margin-bottom: 4px;
+        }
+
+        .item-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .edit-btn {
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .edit-btn:hover {
+            background: #388e3c;
+            transform: scale(1.1);
+        }
+
+        .delete-btn {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            background: #ff5252;
+            transform: scale(1.1);
+        }
+
+        /* 料理作成エリア */
+        .small-dishes-panel .panel-title::before {
+            content: "🍳";
+        }
+
+        .dish-form {
+            background: rgba(76, 175, 80, 0.1);
+            border: 2px dashed #81c784;
+        }
+
+        .dish-builder {
+            min-height: 150px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 3px dashed #81c784;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .dish-builder.drag-over {
+            border-color: #4caf50;
+            background: rgba(76, 175, 80, 0.1);
+            transform: scale(1.02);
+        }
+
+        .dish-builder-title {
+            text-align: center;
+            color: #4caf50;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .dish-ingredients {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .dish-ingredient {
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid #81c784;
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dish-ingredient-remove {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            font-size: 10px;
+        }
+
+        .dish-total {
+            text-align: center;
+            font-weight: 600;
+            color: #4caf50;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 2px solid #e8f5e8;
+        }
+
+        .small-dish-item {
+            border-color: #e8f5e8;
+        }
+
+        .small-dish-item:hover {
+            border-color: #81c784;
+            box-shadow: 0 8px 25px rgba(76, 175, 80, 0.2);
+        }
+
+        .small-dish-item .item-name {
+            color: #4caf50;
+        }
+
+        /* FOODエリア */
+        .food-section {
+            background: rgba(255, 255, 255, 0.7);
+            border: 3px dashed #ff9800;
+            border-radius: 20px;
+            padding: 25px;
+            min-height: 400px;
+            transition: all 0.3s ease;
+            position: relative;
+            text-align: center;
+        }
+
+        .food-section.drag-over {
+            border-color: #f57c00;
+            background: rgba(255, 152, 0, 0.1);
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(255, 152, 0, 0.3);
+        }
+
+        .food-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .food-icon {
+            font-size: 4rem;
+            margin-bottom: 10px;
+        }
+
+        .food-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #f57c00;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .food-items {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 250px;
+        }
+
+        .food-item {
+            background: linear-gradient(45deg, #fff3e0, #ffeaa7);
+            border: 2px solid #ff9800;
+            border-radius: 12px;
+            padding: 12px;
+            position: relative;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .food-item-name {
+            font-weight: 600;
+            color: #e65100;
+        }
+
+        .food-item-cost {
+            font-size: 0.9rem;
+            color: #f57c00;
+            margin-top: 4px;
+        }
+
+        .food-item-details {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .food-subtotal {
+            background: rgba(255, 152, 0, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-weight: 600;
+            color: #f57c00;
+            font-size: 1.2rem;
+        }
+
+        .empty-state {
+            color: #999;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .remove-food-item {
+            position: absolute;
+            top: 5px;
+            right: 8px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .remove-food-item:hover {
+            background: #ff5252;
+            transform: scale(1.2);
+        }
+
+        .finish-food-btn {
+            background: linear-gradient(45deg, #ff9800, #f57c00);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .finish-food-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+        }
+
+        /* 完成品パネル */
+        .finished-foods-panel {
+            grid-column: 1 / -1;
+            margin-top: 30px;
+        }
+
+        .finished-foods-panel .panel-title::before {
+            content: "🏆";
+        }
+
+        .finished-foods-panel .panel-title {
+            color: #ff6f00;
+        }
+
+        .finished-food-item {
+            border-color: #ffe0b2;
+            cursor: pointer;
+        }
+
+        .finished-food-item:hover {
+            border-color: #ffcc02;
+            box-shadow: 0 8px 25px rgba(255, 152, 0, 0.2);
+        }
+
+        .finished-food-item .item-name {
+            color: #ff6f00;
+        }
+
+        /* モーダル */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 80%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e3f2fd;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1976d2;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        /* 価格検索モーダル */
+        .search-modal-content {
+            max-width: 800px;
+            width: 90%;
+        }
+
+        .search-input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .search-filters {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-row label {
+            min-width: 60px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .filter-row select {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e3f2fd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .search-results {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            background: #fafafa;
+        }
+
+        .search-result-item {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            background: white;
+            margin: 8px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-item.cheapest {
+            background: linear-gradient(45deg, #c8e6c9, #e8f5e8);
+            border: 2px solid #4caf50;
+            font-weight: 600;
+            animation: highlight 1s ease-in-out;
+        }
+
+        @keyframes highlight {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        .search-result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .search-result-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1976d2;
+        }
+
+        .search-result-price {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+
+        .search-result-details {
+            display: flex;
+            justify-content: space-between;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .search-result-store {
+            background: #e3f2fd;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            color: #1976d2;
+        }
+
+        .cheapest-badge {
+            background: #4caf50;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .no-results {
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            padding: 40px;
+        }
+
+        .edit-input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .edit-input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .edit-input-row label {
+            min-width: 80px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .edit-input-row input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e3f2fd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .edit-input-row input:read-only {
+            background-color: #f5f5f5;
+            color: #666;
+        }
+
+        .edit-input-row span {
+            font-weight: 600;
+            color: #666;
+            min-width: 30px;
+        }
+
+        .edit-preview {
+            background: rgba(76, 175, 80, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-weight: 600;
+            color: #2e7d32;
+            text-align: center;
+        }
+
+        .quantity-input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .quantity-input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .quantity-input-row label {
+            min-width: 80px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .quantity-input-row input,
+        .quantity-input-row select {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e3f2fd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-btn.confirm {
+            background: #4caf50;
+            color: white;
+        }
+
+        .modal-btn.confirm:hover {
+            background: #388e3c;
+        }
+
+        .modal-btn.cancel {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .modal-btn.cancel:hover {
+            background: #e0e0e0;
+        }
+
+        .cost-preview {
+            background: rgba(76, 175, 80, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-weight: 600;
+            color: #2e7d32;
+            text-align: center;
+        }
+
+        /* 合計エリア */
+        .total-area {
+            background: linear-gradient(45deg, #ff9800, #f57c00);
+            color: white;
+            padding: 25px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(255, 152, 0, 0.3);
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            min-width: 300px;
+            max-width: 400px;
+        }
+
+        .total-title {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .total-amount {
+            font-size: 3rem;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* レスポンシブデザイン */
+        @media (max-width: 1400px) {
+            .main-content {
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .total-area {
+                min-width: 250px;
+                max-width: 300px;
+            }
+            
+            body {
+                padding-bottom: 300px;
+            }
+        }
+
+        @media (max-width: 1000px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            body {
+                padding-bottom: 120px;
+            }
+        }
+
+        /* フローティングドロップエリア */
+        .floating-drop-area {
+            position: fixed;
+            z-index: 1500;
+            min-width: 350px;
+            max-width: 450px;
+            backdrop-filter: blur(4px);
+            display: none;
+            pointer-events: auto;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .floating-drop-area.show {
+            display: block;
+        }
+
+        .floating-dish-builder {
+            background: linear-gradient(45deg, #4caf50, #388e3c);
+            color: white;
+        }
+
+        .floating-food-area {
+            background: linear-gradient(45deg, #ff9800, #f57c00);
+            color: white;
+        }
+
+        .floating-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        .floating-content {
+            background: rgba(255, 255, 255, 0.9);
+            border: 3px dashed #81c784;
+            border-radius: 15px;
+            padding: 20px;
+            min-height: 150px;
+            position: relative;
+            transition: all 0.3s ease;
+            color: #333;
+            text-align: center;
+        }
+
+        .floating-food-area .floating-content {
+            border-color: #ffb74d;
+        }
+
+        .floating-content.drag-over {
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .floating-dish-builder .floating-content.drag-over {
+            border-color: #4caf50;
+            background: rgba(76, 175, 80, 0.15);
+        }
+
+        .floating-food-area .floating-content.drag-over {
+            border-color: #f57c00;
+            background: rgba(255, 152, 0, 0.15);
+        }
+
+        /* 成功メッセージ */
+        .success-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #4caf50;
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            z-index: 3000;
+            box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
+            animation: fadeInOut 2s ease-in-out;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        }
+
+        /* エラーメッセージ */
+        .error-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #f44336;
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            z-index: 3000;
+            box-shadow: 0 4px 20px rgba(244, 67, 54, 0.3);
+            animation: fadeInOut 3s ease-in-out;
+        }
+
+        /* 更新メッセージ */
+        .update-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #ff9800;
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            z-index: 3000;
+            box-shadow: 0 4px 20px rgba(255, 152, 0, 0.3);
+            animation: fadeInOut 3s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- データ管理ボタン -->
+        <div class="data-management">
+            <button class="data-btn" onclick="exportData()" title="データをJSONファイルとしてダウンロード">💾 保存</button>
+            <button class="data-btn" onclick="importData()" title="JSONファイルからデータを読み込み">📁 読み込み</button>
+            <button class="data-btn" onclick="loadSampleData()" title="サンプルデータを読み込み">📋 サンプル</button>
+            <button class="data-btn search" onclick="openPriceSearch()" title="価格検索">🔍 価格検索</button>
+            <button class="data-btn danger" onclick="clearAllData()" title="すべてのデータを削除">🗑️ クリア</button>
+        </div>
+
+        <h1>🍽️ 料理原価計算システム</h1>
+        
+        <div class="main-content">
+            <!-- 食材パネル -->
+            <div class="panel">
+                <div class="panel-title">購入食材</div>
+                
+                <div class="form">
+                    <div class="form-title">食材購入登録</div>
+                    <input type="text" id="ingredient-name" placeholder="食材名（例：鶏もも肉）" />
+                    <select id="ingredient-store">
+                        <option value="DIO">DIO</option>
+                        <option value="コスモス">コスモス</option>
+                        <option value="コープ">コープ</option>
+                        <option value="ニシナ">ニシナ</option>
+                        <option value="仕入れ">仕入れ</option>
+                    </select>
+                    <input type="number" id="ingredient-quantity" placeholder="購入量" step="0.1" />
+                    <select id="ingredient-unit">
+                        <option value="g">g（グラム）</option>
+                        <option value="個">個（個数）</option>
+                    </select>
+                    <input type="number" id="ingredient-price" placeholder="購入価格（円）" step="0.1" />
+                    <button class="add-btn" onclick="addIngredient()">食材を登録</button>
+                </div>
+                
+                <div class="item-list" id="ingredients-list">
+                    <!-- 材料がここに表示される -->
+                </div>
+            </div>
+            
+            <!-- 料理パネル -->
+            <div class="panel small-dishes-panel">
+                <div class="panel-title">料理作成</div>
+                
+                <div class="form dish-form">
+                    <div class="form-title">料理レシピ作成</div>
+                    <input type="text" id="dish-name" placeholder="料理名（例：チキンソテー）" />
+                    
+                    <div class="dish-builder" id="dish-builder" ondrop="dropToDish(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                        <div class="dish-builder-title">食材をドラッグして使用量を設定</div>
+                        <div class="dish-ingredients" id="dish-ingredients">
+                            <!-- 料理の材料がここに表示される -->
+                        </div>
+                        <div class="dish-total" id="dish-total">合計原価: ¥0</div>
+                    </div>
+                    
+                    <button class="add-btn" onclick="createDish()">料理を作成</button>
+                </div>
+                
+                <div class="item-list" id="small-dishes-list">
+                    <!-- 料理がここに表示される -->
+                </div>
+            </div>
+            
+            <!-- FOODエリア -->
+            <div class="final-food-area">
+                <div class="food-section" ondrop="dropToFood(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                    <div class="food-header">
+                        <div class="food-icon">🍽️</div>
+                        <div class="food-title">FOOD</div>
+                    </div>
+                    <div class="food-items" id="food-items">
+                        <div class="empty-state">料理をドラッグしてメニューを作成してください</div>
+                    </div>
+                    <div class="food-subtotal" id="food-subtotal">合計: ¥0</div>
+                </div>
+                <button class="finish-food-btn" onclick="finishFood()">完成品として登録</button>
+            </div>
+        </div>
+
+        <!-- 完成品パネル -->
+        <div class="panel finished-foods-panel">
+            <div class="panel-title">完成品リスト</div>
+            <div class="item-list" id="finished-foods-list">
+                <!-- 完成品がここに表示される -->
+            </div>
+        </div>
+
+        <!-- フローティングドロップエリア -->
+        <div class="floating-drop-area floating-dish-builder" id="floating-dish-builder">
+            <div class="floating-title">🍳 料理レシピ作成</div>
+            <div class="floating-content" ondrop="dropToDishFloating(event)" ondragover="allowDropFloating(event)" ondragleave="dragLeaveFloating(event)">
+                <div style="color: #4caf50; font-weight: 600; margin-top: 50px;">
+                    食材をここにドロップして使用量を設定
+                </div>
+            </div>
+        </div>
+
+        <div class="floating-drop-area floating-food-area" id="floating-food-area">
+            <div class="floating-title">🍽️ FOOD</div>
+            <div class="floating-content" ondrop="dropToFoodFloating(event)" ondragover="allowDropFloating(event)" ondragleave="dragLeaveFloating(event)">
+                <div style="color: #f57c00; font-weight: 600; margin-top: 50px;">
+                    料理をここにドロップしてメニューに追加
+                </div>
+            </div>
+        </div>
+        
+        <div class="total-area">
+            <div class="total-title">合計原価</div>
+            <div class="total-amount" id="total-amount">¥0</div>
+        </div>
+    </div>
+
+    <!-- 価格検索モーダル -->
+    <div id="priceSearchModal" class="modal">
+        <div class="modal-content search-modal-content">
+            <div class="modal-header">
+                <div class="modal-title">🔍 価格検索</div>
+                <span class="close" onclick="closePriceSearch()">&times;</span>
+            </div>
+            <div class="search-input-section">
+                <div class="search-filters">
+                    <div class="filter-row">
+                        <label>食材名:</label>
+                        <select id="search-ingredient-name" onchange="updateSearchResults()">
+                            <option value="">すべて</option>
+                        </select>
+                    </div>
+                    <div class="filter-row">
+                        <label>購入先:</label>
+                        <select id="search-store" onchange="updateSearchResults()">
+                            <option value="">すべて</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="search-results" id="search-results">
+                    <!-- 検索結果がここに表示される -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 編集モーダル -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="edit-modal-title">食材を編集</div>
+                <span class="close" onclick="closeEditModal()">&times;</span>
+            </div>
+            <div class="edit-input-section">
+                <div class="edit-input-row">
+                    <label>食材名:</label>
+                    <input type="text" id="edit-ingredient-name" readonly>
+                </div>
+                <div class="edit-input-row">
+                    <label>購入先:</label>
+                    <input type="text" id="edit-ingredient-store" readonly>
+                </div>
+                <div class="edit-input-row">
+                    <label>購入量:</label>
+                    <input type="number" id="edit-ingredient-quantity" step="0.1" min="0">
+                    <span id="edit-ingredient-unit"></span>
+                </div>
+                <div class="edit-input-row">
+                    <label>購入価格:</label>
+                    <input type="number" id="edit-ingredient-price" step="0.1" min="0">
+                    <span>円</span>
+                </div>
+                <div class="edit-preview" id="edit-preview">
+                    単価: ¥0
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="closeEditModal()">キャンセル</button>
+                <button class="modal-btn confirm" onclick="confirmEdit()">更新</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 使用量入力モーダル -->
+    <div id="quantityModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="quantity-modal-title">使用量を入力</div>
+                <span class="close" onclick="closeQuantityModal()">&times;</span>
+            </div>
+            <div class="quantity-input-section">
+                <div class="quantity-input-row">
+                    <label>使用量:</label>
+                    <input type="number" id="use-quantity" placeholder="使用量" step="0.1" min="0">
+                    <select id="use-unit">
+                        <option value="g">g</option>
+                        <option value="個">個</option>
+                    </select>
+                </div>
+                <div class="cost-preview" id="cost-preview">
+                    原価: ¥0
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="closeQuantityModal()">キャンセル</button>
+                <button class="modal-btn confirm" onclick="confirmQuantity()">追加</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ingredients = [];
+        let smallDishes = [];
+        let foodItems = [];
+        let finishedFoods = [];
+        let currentDishIngredients = [];
+        let currentIngredientForQuantity = null;
+        let currentMode = '';
+
+        let currentIngredientForEdit = null;
+
+        // ページ読み込み時にデータを復元
+        window.onload = function() {
+            loadData();
+            updateDisplay();
+        };
+
+        // メッセージ表示関数
+        function showMessage(message, type = 'success') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'success' ? 'success-message' : 
+                                  type === 'update' ? 'update-message' : 'error-message';
+            messageDiv.textContent = message;
+            document.body.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, type === 'success' ? 2000 : 3000);
+        }
+
+        // 食材を購入登録
+        function addIngredient() {
+            const name = document.getElementById('ingredient-name').value.trim();
+            const store = document.getElementById('ingredient-store').value;
+            const quantity = parseFloat(document.getElementById('ingredient-quantity').value);
+            const unit = document.getElementById('ingredient-unit').value;
+            const price = parseFloat(document.getElementById('ingredient-price').value);
+
+            if (!name || !store || !quantity || !unit || !price) {
+                showMessage('すべての項目を入力してください', 'error');
+                return;
+            }
+
+            if (quantity <= 0 || price <= 0) {
+                showMessage('数量と価格は0より大きい値を入力してください', 'error');
+                return;
+            }
+
+            // 同じ食材名と購入先の組み合わせが既に存在するかチェック
+            const existingIngredient = ingredients.find(ing => 
+                ing.name === name && ing.store === store && ing.unit === unit
+            );
+
+            if (existingIngredient) {
+                // 既存データを更新
+                existingIngredient.quantity = quantity;
+                existingIngredient.price = price;
+                existingIngredient.unitPrice = price / quantity;
+                existingIngredient.updatedAt = Date.now();
+                
+                saveData();
+                updateDisplay();
+                clearIngredientForm();
+                showMessage(`${name}（${store}）の価格情報を更新しました`, 'update');
+                return;
+            }
+
+            // 新規追加
+            const ingredient = {
+                id: Date.now(),
+                name: name,
+                store: store,
+                quantity: quantity,
+                unit: unit,
+                price: price,
+                unitPrice: price / quantity,
+                type: 'ingredient',
+                createdAt: Date.now()
+            };
+
+            ingredients.push(ingredient);
+            saveData();
+            updateDisplay();
+            clearIngredientForm();
+            showMessage(`${name}（${store}）を登録しました`);
+        }
+
+        function clearIngredientForm() {
+            document.getElementById('ingredient-name').value = '';
+            document.getElementById('ingredient-store').value = 'DIO';
+            document.getElementById('ingredient-quantity').value = '';
+            document.getElementById('ingredient-unit').value = 'g';
+            document.getElementById('ingredient-price').value = '';
+        }
+
+        function createDish() {
+            const name = document.getElementById('dish-name').value.trim();
+            
+            if (!name) {
+                showMessage('料理名を入力してください', 'error');
+                return;
+            }
+
+            if (currentDishIngredients.length === 0) {
+                showMessage('材料を追加してください', 'error');
+                return;
+            }
+
+            const totalPrice = currentDishIngredients.reduce((sum, ing) => sum + ing.usedCost, 0);
+            
+            const dish = {
+                id: Date.now(),
+                name: name,
+                ingredients: [...currentDishIngredients],
+                price: totalPrice,
+                type: 'dish',
+                createdAt: Date.now()
+            };
+
+            smallDishes.push(dish);
+            currentDishIngredients = [];
+            document.getElementById('dish-name').value = '';
+            saveData();
+            updateDisplay();
+            showMessage(`${name}を作成しました`);
+        }
+
+        // 価格検索機能
+        function openPriceSearch() {
+            populateSearchFilters();
+            updateSearchResults();
+            document.getElementById('priceSearchModal').style.display = 'block';
+        }
+
+        function closePriceSearch() {
+            document.getElementById('priceSearchModal').style.display = 'none';
+        }
+
+        function populateSearchFilters() {
+            const ingredientSelect = document.getElementById('search-ingredient-name');
+            const storeSelect = document.getElementById('search-store');
+            
+            // 食材名の選択肢を生成
+            const uniqueIngredients = [...new Set(ingredients.map(ing => ing.name))].sort();
+            ingredientSelect.innerHTML = '<option value="">すべて</option>';
+            uniqueIngredients.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                ingredientSelect.appendChild(option);
+            });
+            
+            // 購入先の選択肢を生成
+            const uniqueStores = [...new Set(ingredients.map(ing => ing.store))].sort();
+            storeSelect.innerHTML = '<option value="">すべて</option>';
+            uniqueStores.forEach(store => {
+                const option = document.createElement('option');
+                option.value = store;
+                option.textContent = store;
+                storeSelect.appendChild(option);
+            });
+        }
+
+        function updateSearchResults() {
+            const selectedIngredient = document.getElementById('search-ingredient-name').value;
+            const selectedStore = document.getElementById('search-store').value;
+            const resultsContainer = document.getElementById('search-results');
+            
+            // フィルタリング
+            let filteredIngredients = ingredients.filter(ing => {
+                return (selectedIngredient === '' || ing.name === selectedIngredient) &&
+                       (selectedStore === '' || ing.store === selectedStore);
+            });
+            
+            if (filteredIngredients.length === 0) {
+                resultsContainer.innerHTML = '<div class="no-results">該当する食材が見つかりません</div>';
+                return;
+            }
+            
+            // 単価で昇順ソート
+            filteredIngredients.sort((a, b) => a.unitPrice - b.unitPrice);
+            
+            // 最安値を特定
+            const cheapestPrice = filteredIngredients[0].unitPrice;
+            
+            // 結果を表示
+            resultsContainer.innerHTML = '';
+            filteredIngredients.forEach((ingredient, index) => {
+                const div = document.createElement('div');
+                div.className = 'search-result-item';
+                
+                // 最安値の場合はハイライト
+                if (ingredient.unitPrice === cheapestPrice) {
+                    div.classList.add('cheapest');
+                }
+                
+                const updatedDate = ingredient.updatedAt ? 
+                    new Date(ingredient.updatedAt).toLocaleDateString('ja-JP') : 
+                    new Date(ingredient.createdAt || Date.now()).toLocaleDateString('ja-JP');
+                
+                div.innerHTML = `
+                    <div class="search-result-header">
+                        <div class="search-result-name">
+                            ${ingredient.name}
+                            ${ingredient.unitPrice === cheapestPrice ? '<span class="cheapest-badge">最安値</span>' : ''}
+                        </div>
+                        <div class="search-result-price">¥${ingredient.unitPrice.toFixed(2)}/${ingredient.unit}</div>
+                    </div>
+                    <div class="search-result-details">
+                        <div>
+                            <span class="search-result-store">${ingredient.store}</span>
+                            <span style="margin-left: 10px;">${ingredient.quantity}${ingredient.unit} - ¥${ingredient.price}</span>
+                        </div>
+                        <div style="color: #999; font-size: 0.8rem;">更新: ${updatedDate}</div>
+                    </div>
+                `;
+                
+                resultsContainer.appendChild(div);
+            });
+        }
+
+        function editIngredient(id) {
+            const ingredient = ingredients.find(ing => ing.id === id);
+            if (!ingredient) {
+                showMessage('食材が見つかりません', 'error');
+                return;
+            }
+
+            currentIngredientForEdit = ingredient;
+            
+            document.getElementById('edit-modal-title').textContent = `${ingredient.name} を編集`;
+            document.getElementById('edit-ingredient-name').value = ingredient.name;
+            document.getElementById('edit-ingredient-store').value = ingredient.store;
+            document.getElementById('edit-ingredient-quantity').value = ingredient.quantity;
+            document.getElementById('edit-ingredient-unit').textContent = ingredient.unit;
+            document.getElementById('edit-ingredient-price').value = ingredient.price;
+            
+            updateEditPreview();
+            
+            document.getElementById('editModal').style.display = 'block';
+            
+            // 入力イベントリスナーを追加
+            document.getElementById('edit-ingredient-quantity').oninput = updateEditPreview;
+            document.getElementById('edit-ingredient-price').oninput = updateEditPreview;
+            
+            document.getElementById('edit-ingredient-quantity').focus();
+        }
+
+        function updateEditPreview() {
+            const quantity = parseFloat(document.getElementById('edit-ingredient-quantity').value) || 0;
+            const price = parseFloat(document.getElementById('edit-ingredient-price').value) || 0;
+            
+            if (quantity > 0) {
+                const unitPrice = price / quantity;
+                document.getElementById('edit-preview').textContent = `単価: ¥${unitPrice.toFixed(2)}/${currentIngredientForEdit.unit}`;
+            } else {
+                document.getElementById('edit-preview').textContent = '単価: ¥0';
+            }
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            currentIngredientForEdit = null;
+        }
+
+        function confirmEdit() {
+            const quantity = parseFloat(document.getElementById('edit-ingredient-quantity').value);
+            const price = parseFloat(document.getElementById('edit-ingredient-price').value);
+            
+            if (!quantity || quantity <= 0) {
+                showMessage('正しい数量を入力してください', 'error');
+                return;
+            }
+
+            if (!price || price <= 0) {
+                showMessage('正しい価格を入力してください', 'error');
+                return;
+            }
+
+            // 食材情報を更新
+            currentIngredientForEdit.quantity = quantity;
+            currentIngredientForEdit.price = price;
+            currentIngredientForEdit.unitPrice = price / quantity;
+            currentIngredientForEdit.updatedAt = Date.now();
+            
+            saveData();
+            updateDisplay();
+            closeEditModal();
+            showMessage(`${currentIngredientForEdit.name}の情報を更新しました`, 'update');
+        }
+
+        function deleteIngredient(id) {
+            if (confirm('この食材を削除しますか？')) {
+                ingredients = ingredients.filter(ing => ing.id !== id);
+                saveData();
+                updateDisplay();
+                showMessage('食材を削除しました');
+            }
+        }
+
+        function deleteDish(id) {
+            if (confirm('この料理を削除しますか？')) {
+                smallDishes = smallDishes.filter(dish => dish.id !== id);
+                saveData();
+                updateDisplay();
+                showMessage('料理を削除しました');
+            }
+        }
+
+        function deleteFinishedFood(id) {
+            if (confirm('この完成品を削除しますか？')) {
+                finishedFoods = finishedFoods.filter(food => food.id !== id);
+                saveData();
+                updateDisplay();
+                showMessage('完成品を削除しました');
+            }
+        }
+
+        function updateDisplay() {
+            updateIngredientsList();
+            updateSmallDishesList();
+            updateDishBuilder();
+            updateFoodSection();
+            updateFinishedFoodsList();
+            updateTotals();
+        }
+
+        function updateIngredientsList() {
+            const list = document.getElementById('ingredients-list');
+            list.innerHTML = '';
+
+            ingredients.forEach(ingredient => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.draggable = true;
+                div.dataset.itemId = ingredient.id;
+                div.dataset.itemType = 'ingredient';
+                div.ondragstart = function(e) {
+                    e.dataTransfer.setData('text/plain', JSON.stringify({
+                        id: ingredient.id,
+                        type: 'ingredient'
+                    }));
+                    startDrag('ingredient', e);
+                };
+                div.ondragend = function(e) {
+                    endDrag();
+                };
+
+                div.innerHTML = `
+                    <div class="item-name">${ingredient.name}</div>
+                    <div class="item-store">購入先: ${ingredient.store}</div>
+                    <div class="item-details">
+                        <span>購入: ${ingredient.quantity}${ingredient.unit} - ¥${ingredient.price}</span>
+                        <div class="item-buttons">
+                            <button class="edit-btn" onclick="editIngredient(${ingredient.id})" title="編集">✏️</button>
+                            <button class="delete-btn" onclick="deleteIngredient(${ingredient.id})">&times;</button>
+                        </div>
+                    </div>
+                    <div style="font-size: 0.8rem; color: #666; font-style: italic;">単価: ¥${ingredient.unitPrice.toFixed(2)}/${ingredient.unit}</div>
+                `;
+
+                list.appendChild(div);
+            });
+
+            if (ingredients.length === 0) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'empty-state';
+                emptyDiv.textContent = '食材を購入登録してください';
+                list.appendChild(emptyDiv);
+            }
+        }
+
+        function updateSmallDishesList() {
+            const list = document.getElementById('small-dishes-list');
+            list.innerHTML = '';
+
+            smallDishes.forEach(dish => {
+                const div = document.createElement('div');
+                div.className = 'item small-dish-item';
+                div.draggable = true;
+                div.dataset.itemId = dish.id;
+                div.dataset.itemType = 'dish';
+                div.ondragstart = function(e) {
+                    e.dataTransfer.setData('text/plain', JSON.stringify({
+                        id: dish.id,
+                        type: 'dish'
+                    }));
+                    startDrag('dish', e);
+                };
+                div.ondragend = function(e) {
+                    endDrag();
+                };
+
+                const ingredientsList = dish.ingredients.map(ing => 
+                    `${ing.name}(${ing.usedQuantity}${ing.unit})`
+                ).join(', ');
+
+                div.innerHTML = `
+                    <div class="item-name">${dish.name}</div>
+                    <div style="font-size: 0.8rem; color: #666; margin-bottom: 8px;">${ingredientsList}</div>
+                    <div style="font-weight: 600; color: #2e7d32;">原価: ¥${dish.price.toFixed(2)}</div>
+                    <button class="delete-btn" onclick="deleteDish(${dish.id})">&times;</button>
+                `;
+
+                list.appendChild(div);
+            });
+
+            if (smallDishes.length === 0) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'empty-state';
+                emptyDiv.textContent = '料理を作成してください';
+                list.appendChild(emptyDiv);
+            }
+        }
+
+        function updateDishBuilder() {
+            const container = document.getElementById('dish-ingredients');
+            const totalElement = document.getElementById('dish-total');
+            
+            container.innerHTML = '';
+            let total = 0;
+
+            if (currentDishIngredients.length === 0) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'empty-state';
+                emptyDiv.textContent = '食材をドラッグして使用量を設定してください';
+                emptyDiv.style.color = '#81c784';
+                emptyDiv.style.fontSize = '0.9rem';
+                container.appendChild(emptyDiv);
+            } else {
+                currentDishIngredients.forEach((ingredient, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'dish-ingredient';
+                    div.innerHTML = `
+                        <span>${ingredient.name}(${ingredient.store}) - ${ingredient.usedQuantity}${ingredient.unit} (¥${ingredient.usedCost.toFixed(2)})</span>
+                        <button class="dish-ingredient-remove" onclick="removeFromDish(${index})">&times;</button>
+                    `;
+                    container.appendChild(div);
+                    total += ingredient.usedCost;
+                });
+            }
+
+            totalElement.textContent = `合計原価: ¥${total.toFixed(2)}`;
+        }
+
+        function removeFromDish(index) {
+            currentDishIngredients.splice(index, 1);
+            updateDishBuilder();
+        }
+
+        function updateFoodSection() {
+            const container = document.getElementById('food-items');
+            
+            if (foodItems.length === 0) {
+                container.innerHTML = '<div class="empty-state">料理をドラッグしてメニューを作成してください</div>';
+            } else {
+                container.innerHTML = '';
+                foodItems.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'food-item';
+                    
+                    let details = '';
+                    if (item.type === 'dish') {
+                        const ingredientsList = item.ingredients.map(ing => 
+                            `${ing.name}(${ing.usedQuantity}${ing.unit})`
+                        ).join(', ');
+                        details = `<div class="food-item-details">${ingredientsList}</div>`;
+                    }
+                    
+                    div.innerHTML = `
+                        <div class="food-item-name">${item.name}</div>
+                        ${details}
+                        <div class="food-item-cost">原価: ¥${item.price.toFixed(2)}</div>
+                        <button class="remove-food-item" onclick="removeFromFood(${item.id})">&times;</button>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+        }
+
+        function updateFinishedFoodsList() {
+            const list = document.getElementById('finished-foods-list');
+            list.innerHTML = '';
+
+            finishedFoods.forEach(food => {
+                const div = document.createElement('div');
+                div.className = 'item finished-food-item';
+                div.onclick = function() {
+                    showFoodDetails(food);
+                };
+
+                const date = new Date(food.createdAt).toLocaleDateString('ja-JP');
+
+                div.innerHTML = `
+                    <div class="item-name">${food.name}</div>
+                    <div style="font-weight: 600; color: #e65100;">原価: ¥${food.totalCost.toFixed(2)}</div>
+                    <div style="font-size: 0.7rem; color: #999; margin-top: 4px;">${date}</div>
+                    <button class="delete-btn" onclick="deleteFinishedFood(${food.id}); event.stopPropagation()" style="position: absolute; top: 8px; right: 8px;">&times;</button>
+                `;
+
+                list.appendChild(div);
+            });
+
+            if (finishedFoods.length === 0) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'empty-state';
+                emptyDiv.textContent = '完成品がありません';
+                list.appendChild(emptyDiv);
+            }
+        }
+
+        function showFoodDetails(food) {
+            let detailsHTML = '<div style="font-size: 1.1rem; margin-bottom: 15px; color: #ff6f00; font-weight: bold;">使用料理・原価詳細</div>';
+            
+            food.items.forEach(item => {
+                detailsHTML += `<div style="background: rgba(255,152,0,0.1); padding: 10px; margin: 8px 0; border-radius: 8px; border-left: 4px solid #ff9800;">`;
+                detailsHTML += `<strong>${item.name}</strong> - ¥${item.price.toFixed(2)}<br>`;
+                
+                if (item.ingredients) {
+                    detailsHTML += '<div style="font-size: 0.9rem; color: #666; margin-top: 5px;">使用材料: ';
+                    detailsHTML += item.ingredients.map(ing => `${ing.name}(${ing.store})(${ing.usedQuantity}${ing.unit})`).join(', ');
+                    detailsHTML += '</div>';
+                }
+                detailsHTML += '</div>';
+            });
+            
+            detailsHTML += `<div style="background: #ff9800; color: white; padding: 15px; border-radius: 12px; text-align: center; font-size: 1.3rem; font-weight: bold; margin-top: 20px;">合計原価: ¥${food.totalCost.toFixed(2)}</div>`;
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                display: block;
+                position: fixed;
+                z-index: 2000;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.5);
+                backdrop-filter: blur(5px);
+            `;
+            
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background-color: white;
+                margin: 5% auto;
+                padding: 30px;
+                border-radius: 20px;
+                width: 80%;
+                max-width: 600px;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            `;
+            
+            content.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ffe0b2;">
+                    <div style="font-size: 1.8rem; font-weight: 600; color: #ff6f00;">${food.name}</div>
+                    <span style="color: #aaa; font-size: 2rem; font-weight: bold; cursor: pointer;" onclick="this.closest('.modal-temp').remove()">&times;</span>
+                </div>
+                ${detailsHTML}
+            `;
+            
+            modal.className = 'modal-temp';
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+            
+            modal.onclick = function(e) {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            };
+        }
+
+        function updateTotals() {
+            const foodTotal = foodItems.reduce((sum, item) => sum + item.price, 0);
+            document.getElementById('food-subtotal').textContent = `合計: ¥${foodTotal.toFixed(2)}`;
+            document.getElementById('total-amount').textContent = `¥${foodTotal.toFixed(2)}`;
+        }
+
+        function finishFood() {
+            if (foodItems.length === 0) {
+                showMessage('FOODエリアに料理を追加してください', 'error');
+                return;
+            }
+
+            const foodName = prompt('完成品の名前を入力してください:');
+            if (!foodName || !foodName.trim()) {
+                return;
+            }
+
+            const totalCost = foodItems.reduce((sum, item) => sum + item.price, 0);
+            
+            const finishedFood = {
+                id: Date.now(),
+                name: foodName.trim(),
+                items: [...foodItems],
+                totalCost: totalCost,
+                createdAt: Date.now()
+            };
+
+            finishedFoods.push(finishedFood);
+            foodItems = [];
+            saveData();
+            updateDisplay();
+            showMessage(`「${foodName}」を完成品として登録しました！`);
+        }
+
+        // ドラッグ&ドロップ関連
+        function startDrag(type, event) {
+            const rect = event.target.getBoundingClientRect();
+            const rightX = rect.right + 20;
+            const centerY = rect.top + rect.height / 2;
+            
+            if (type === 'ingredient') {
+                showFloatingDishBuilder(rightX, centerY);
+            } else if (type === 'dish') {
+                showFloatingFoodArea(rightX, centerY);
+            }
+        }
+
+        function endDrag() {
+            hideFloatingAreas();
+        }
+
+        function showFloatingDishBuilder(x, y) {
+            const floatingArea = document.getElementById('floating-dish-builder');
+            const adjusted = adjustFloatingPosition(x, y);
+            floatingArea.style.left = adjusted.x + 'px';
+            floatingArea.style.top = adjusted.y + 'px';
+            floatingArea.classList.add('show');
+        }
+
+        function showFloatingFoodArea(x, y) {
+            const floatingArea = document.getElementById('floating-food-area');
+            const adjusted = adjustFloatingPosition(x, y);
+            floatingArea.style.left = adjusted.x + 'px';
+            floatingArea.style.top = adjusted.y + 'px';
+            floatingArea.classList.add('show');
+        }
+
+        function adjustFloatingPosition(x, y) {
+            const windowWidth = window.innerWidth;
+            const elementWidth = 400;
+            
+            if (x + elementWidth > windowWidth - 50) {
+                x = x - elementWidth - 50;
+            }
+            
+            const windowHeight = window.innerHeight;
+            const elementHeight = 200;
+            
+            if (y + elementHeight > windowHeight - 50) {
+                y = windowHeight - elementHeight - 50;
+            }
+            if (y < 50) {
+                y = 50;
+            }
+            
+            return { x, y };
+        }
+
+        function hideFloatingAreas() {
+            document.getElementById('floating-dish-builder').classList.remove('show');
+            document.getElementById('floating-food-area').classList.remove('show');
+        }
+
+        function allowDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function dragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function allowDropFloating(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function dragLeaveFloating(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function dropToDish(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            
+            const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            
+            if (dragData.type === 'ingredient') {
+                const ingredient = ingredients.find(ing => ing.id === dragData.id);
+                if (ingredient) {
+                    showQuantityModal(ingredient, 'dish');
+                }
+            }
+        }
+
+        function dropToFood(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            
+            const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            
+            if (dragData.type === 'dish') {
+                const dish = smallDishes.find(d => d.id === dragData.id);
+                if (dish) {
+                    foodItems.push({...dish});
+                    saveData();
+                    updateDisplay();
+                    showMessage(`${dish.name}をメニューに追加しました`);
+                }
+            }
+        }
+
+        function dropToDishFloating(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            
+            const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            
+            if (dragData.type === 'ingredient') {
+                const ingredient = ingredients.find(ing => ing.id === dragData.id);
+                if (ingredient) {
+                    showQuantityModal(ingredient, 'dish');
+                }
+            }
+        }
+
+        function dropToFoodFloating(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            
+            const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+            
+            if (dragData.type === 'dish') {
+                const dish = smallDishes.find(d => d.id === dragData.id);
+                if (dish) {
+                    foodItems.push({...dish});
+                    saveData();
+                    updateDisplay();
+                    showMessage(`${dish.name}をメニューに追加しました`);
+                }
+            }
+        }
+
+        function removeFromFood(itemId) {
+            const item = foodItems.find(item => item.id === itemId);
+            if (item) {
+                foodItems = foodItems.filter(item => item.id !== itemId);
+                saveData();
+                updateDisplay();
+                showMessage(`${item.name}をメニューから削除しました`);
+            }
+        }
+
+        // 使用量入力モーダル関連
+        function showQuantityModal(ingredient, mode) {
+            currentIngredientForQuantity = ingredient;
+            currentMode = mode;
+            
+            document.getElementById('quantity-modal-title').textContent = `${ingredient.name}(${ingredient.store}) の使用量を入力`;
+            document.getElementById('use-quantity').value = '';
+            document.getElementById('use-unit').value = ingredient.unit;
+            document.getElementById('cost-preview').textContent = '原価: ¥0';
+            
+            const unitSelect = document.getElementById('use-unit');
+            unitSelect.innerHTML = `<option value="${ingredient.unit}">${ingredient.unit}</option>`;
+            
+            document.getElementById('quantityModal').style.display = 'block';
+            
+            document.getElementById('use-quantity').oninput = updateCostPreview;
+            document.getElementById('use-quantity').focus();
+        }
+
+        function updateCostPreview() {
+            const quantity = parseFloat(document.getElementById('use-quantity').value) || 0;
+            if (currentIngredientForQuantity && quantity > 0) {
+                const cost = currentIngredientForQuantity.unitPrice * quantity;
+                document.getElementById('cost-preview').textContent = `原価: ¥${cost.toFixed(2)}`;
+            } else {
+                document.getElementById('cost-preview').textContent = '原価: ¥0';
+            }
+        }
+
+        function closeQuantityModal() {
+            document.getElementById('quantityModal').style.display = 'none';
+            currentIngredientForQuantity = null;
+            currentMode = '';
+        }
+
+        function confirmQuantity() {
+            const quantity = parseFloat(document.getElementById('use-quantity').value);
+            const unit = document.getElementById('use-unit').value;
+            
+            if (!quantity || quantity <= 0) {
+                showMessage('正しい使用量を入力してください', 'error');
+                return;
+            }
+
+            if (quantity > currentIngredientForQuantity.quantity) {
+                showMessage(`購入量(${currentIngredientForQuantity.quantity}${unit})を超えています`, 'error');
+                return;
+            }
+
+            const usedCost = currentIngredientForQuantity.unitPrice * quantity;
+            
+            if (currentMode === 'dish') {
+                const dishIngredient = {
+                    ...currentIngredientForQuantity,
+                    usedQuantity: quantity,
+                    usedCost: usedCost
+                };
+                currentDishIngredients.push(dishIngredient);
+                updateDishBuilder();
+                showMessage(`${currentIngredientForQuantity.name}(${currentIngredientForQuantity.store})を追加しました`);
+            }
+            
+            closeQuantityModal();
+        }
+
+        // データ管理関連
+        function saveData() {
+            const data = {
+                ingredients: ingredients,
+                smallDishes: smallDishes,
+                foodItems: foodItems,
+                finishedFoods: finishedFoods,
+                currentDishIngredients: currentDishIngredients,
+                version: "2.1",
+                timestamp: Date.now()
+            };
+            
+            try {
+                localStorage.setItem('cookingCostData', JSON.stringify(data));
+                console.log('データを保存しました');
+            } catch (e) {
+                console.log('データ保存エラー:', e);
+            }
+        }
+
+        function loadData() {
+            try {
+                const savedData = localStorage.getItem('cookingCostData');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    
+                    ingredients = Array.isArray(data.ingredients) ? data.ingredients : [];
+                    smallDishes = Array.isArray(data.smallDishes) ? data.smallDishes : [];
+                    foodItems = Array.isArray(data.foodItems) ? data.foodItems : [];
+                    finishedFoods = Array.isArray(data.finishedFoods) ? data.finishedFoods : [];
+                    currentDishIngredients = Array.isArray(data.currentDishIngredients) ? data.currentDishIngredients : [];
+                    
+                    // データ整合性チェック
+                    ingredients.forEach(ingredient => {
+                        if (!ingredient.unitPrice && ingredient.price && ingredient.quantity) {
+                            ingredient.unitPrice = ingredient.price / ingredient.quantity;
+                        }
+                        if (!ingredient.type) {
+                            ingredient.type = 'ingredient';
+                        }
+                        // 購入先情報がない場合はデフォルト値を設定
+                        if (!ingredient.store) {
+                            ingredient.store = 'DIO';
+                        }
+                    });
+                    
+                    console.log('保存されたデータを読み込みました');
+                }
+            } catch (e) {
+                console.log('データ読み込みエラー:', e);
+            }
+        }
+
+        function exportData() {
+            try {
+                const data = {
+                    ingredients: ingredients,
+                    smallDishes: smallDishes,
+                    foodItems: foodItems,
+                    finishedFoods: finishedFoods,
+                    currentDishIngredients: currentDishIngredients,
+                    exportDate: new Date().toISOString(),
+                    version: "2.1"
+                };
+                
+                const dataStr = JSON.stringify(data, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                
+                // 現在の日時でファイル名を生成
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+                
+                const filename = `cooking-cost-data_${year}${month}${day}_${hours}${minutes}${seconds}.json`;
+                link.download = filename;
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                showMessage(`データを ${filename} として保存しました`);
+            } catch (e) {
+                console.error('Export error:', e);
+                showMessage('エクスポートに失敗しました', 'error');
+            }
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            
+                            // データ構造の検証
+                            if (!data || typeof data !== 'object') {
+                                throw new Error('無効なデータ形式です');
+                            }
+                            
+                            // データの読み込み
+                            ingredients = Array.isArray(data.ingredients) ? data.ingredients : [];
+                            smallDishes = Array.isArray(data.smallDishes) ? data.smallDishes : [];
+                            foodItems = Array.isArray(data.foodItems) ? data.foodItems : [];
+                            finishedFoods = Array.isArray(data.finishedFoods) ? data.finishedFoods : [];
+                            currentDishIngredients = Array.isArray(data.currentDishIngredients) ? data.currentDishIngredients : [];
+                            
+                            // データ整合性チェック
+                            ingredients.forEach(ingredient => {
+                                if (!ingredient.id) ingredient.id = Date.now() + Math.random();
+                                if (!ingredient.unitPrice && ingredient.price && ingredient.quantity) {
+                                    ingredient.unitPrice = ingredient.price / ingredient.quantity;
+                                }
+                                if (!ingredient.type) {
+                                    ingredient.type = 'ingredient';
+                                }
+                                // 購入先情報がない場合はデフォルト値を設定
+                                if (!ingredient.store) {
+                                    ingredient.store = 'DIO';
+                                }
+                            });
+                            
+                            smallDishes.forEach(dish => {
+                                if (!dish.id) dish.id = Date.now() + Math.random();
+                                if (!dish.type) {
+                                    dish.type = 'dish';
+                                }
+                                if (dish.ingredients) {
+                                    dish.ingredients.forEach(ing => {
+                                        if (!ing.usedCost && ing.usedQuantity && ing.unitPrice) {
+                                            ing.usedCost = ing.usedQuantity * ing.unitPrice;
+                                        }
+                                        // 購入先情報がない場合はデフォルト値を設定
+                                        if (!ing.store) {
+                                            ing.store = 'DIO';
+                                        }
+                                    });
+                                }
+                            });
+                            
+                            finishedFoods.forEach(food => {
+                                if (!food.id) food.id = Date.now() + Math.random();
+                                if (!food.createdAt) food.createdAt = Date.now();
+                            });
+                            
+                            saveData();
+                            updateDisplay();
+                            showMessage('データを正常にインポートしました！');
+                            
+                        } catch (error) {
+                            console.error('Import error:', error);
+                            showMessage(`ファイルの読み込みに失敗しました: ${error.message}`, 'error');
+                        }
+                    };
+                    reader.onerror = function() {
+                        showMessage('ファイルの読み込み中にエラーが発生しました', 'error');
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        function clearAllData() {
+            if (confirm('すべてのデータを削除しますか？この操作は元に戻せません。')) {
+                ingredients = [];
+                smallDishes = [];
+                foodItems = [];
+                finishedFoods = [];
+                currentDishIngredients = [];
+                saveData();
+                updateDisplay();
+                showMessage('すべてのデータを削除しました');
+            }
+        }
+
+        // サンプルデータ読み込み機能
+        function loadSampleData() {
+            if (confirm('サンプルデータを読み込みますか？現在のデータは上書きされます。')) {
+                // サンプルデータを直接定義（購入先情報を追加）
+                const sampleData = {
+                    ingredients: [
+                        {
+                            id: 1672531200001,
+                            name: "鶏もも肉",
+                            store: "DIO",
+                            quantity: 300,
+                            unit: "g",
+                            price: 480,
+                            unitPrice: 1.6,
+                            type: "ingredient"
+                        },
+                        {
+                            id: 1672531200002,
+                            name: "玉ねぎ",
+                            store: "コスモス",
+                            quantity: 150,
+                            unit: "g",
+                            price: 80,
+                            unitPrice: 0.533,
+                            type: "ingredient"
+                        },
+                        {
+                            id: 1672531200003,
+                            name: "人参",
+                            store: "ニシナ",
+                            quantity: 100,
+                            unit: "g",
+                            price: 60,
+                            unitPrice: 0.6,
+                            type: "ingredient"
+                        },
+                        {
+                            id: 1672531200004,
+                            name: "じゃがいも",
+                            store: "コープ",
+                            quantity: 200,
+                            unit: "g",
+                            price: 120,
+                            unitPrice: 0.6,
+                            type: "ingredient"
+                        },
+                        {
+                            id: 1672531200005,
+                            name: "卵",
+                            store: "DIO",
+                            quantity: 6,
+                            unit: "個",
+                            price: 180,
+                            unitPrice: 30,
+                            type: "ingredient"
+                        }
+                    ],
+                    smallDishes: [],
+                    foodItems: [],
+                    finishedFoods: [],
+                    currentDishIngredients: []
+                };
+
+                ingredients = sampleData.ingredients;
+                smallDishes = sampleData.smallDishes;
+                foodItems = sampleData.foodItems;
+                finishedFoods = sampleData.finishedFoods;
+                currentDishIngredients = sampleData.currentDishIngredients;
+                
+                saveData();
+                updateDisplay();
+                showMessage('サンプルデータを読み込みました！');
+            }
+        }
+
+        // モーダルの外側をクリックしたら閉じる
+        window.onclick = function(event) {
+            const quantityModal = document.getElementById('quantityModal');
+            const editModal = document.getElementById('editModal');
+            const searchModal = document.getElementById('priceSearchModal');
+            
+            if (event.target === quantityModal) {
+                closeQuantityModal();
+            }
+            if (event.target === editModal) {
+                closeEditModal();
+            }
+            if (event.target === searchModal) {
+                closePriceSearch();
+            }
+        }
+
+        // キーボードショートカット
+        document.addEventListener('keydown', function(e) {
+            // Escキーでモーダルを閉じる
+            if (e.key === 'Escape') {
+                closeQuantityModal();
+                closeEditModal();
+                closePriceSearch();
+            }
+            
+            // Enterキーでモーダル内の確定ボタンを押す
+            if (e.key === 'Enter') {
+                if (document.getElementById('quantityModal').style.display === 'block') {
+                    e.preventDefault();
+                    confirmQuantity();
+                } else if (document.getElementById('editModal').style.display === 'block') {
+                    e.preventDefault();
+                    confirmEdit();
+                }
+            }
+        });
+
+        // フォーム送信を防ぐ
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+                e.preventDefault();
+                
+                // 食材登録フォーム内でEnterが押された場合
+                if (e.target.closest('.form') && !e.target.closest('.modal')) {
+                    if (e.target.id === 'ingredient-name' || 
+                        e.target.id === 'ingredient-quantity' || 
+                        e.target.id === 'ingredient-unit' || 
+                        e.target.id === 'ingredient-price') {
+                        addIngredient();
+                    } else if (e.target.id === 'dish-name') {
+                        createDish();
+                    }
+                }
+            }
+        });
+
+        // タッチデバイス対応
+        let touchStartY = 0;
+        let touchEndY = 0;
+
+        document.addEventListener('touchstart', function(e) {
+            touchStartY = e.changedTouches[0].screenY;
+        }, { passive: true });
+
+        document.addEventListener('touchend', function(e) {
+            touchEndY = e.changedTouches[0].screenY;
+            handleSwipe();
+        }, { passive: true });
+
+        function handleSwipe() {
+            const swipeThreshold = 50;
+            const diff = touchStartY - touchEndY;
+            
+            if (Math.abs(diff) > swipeThreshold) {
+                // スワイプ処理は必要に応じて実装
+            }
+        }
+
+        // リサイズ対応
+        window.addEventListener('resize', function() {
+            hideFloatingAreas();
+        });
+
+        // 初期化完了メッセージ
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('料理原価計算システムが初期化されました');
+        });
+    </script>
+</body>
+</html>
